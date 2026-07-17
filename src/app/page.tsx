@@ -23,12 +23,17 @@ export default function HomePage() {
           care for—mother, child, anyone under your Account. Private by default.
         </p>
         <div className="flex flex-wrap gap-3 pt-2">
-          <Button size="lg" render={<Link href="/login" />}>
+          <Button
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/login" />}
+          >
             Get started
           </Button>
           <Button
             variant="outline"
             size="lg"
+            nativeButton={false}
             render={<Link href="/timeline" />}
           >
             Open timeline

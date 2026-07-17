@@ -74,9 +74,9 @@ export function EventAttachments({
                       Expand
                     </Button>
                     <Button
-                      type="button"
                       variant="ghost"
                       size="sm"
+                      nativeButton={false}
                       render={
                         <a href={att.url} target="_blank" rel="noreferrer" />
                       }
@@ -127,9 +127,9 @@ export function EventAttachments({
               <p className="truncate text-base font-medium">{preview.fileName}</p>
               <div className="flex gap-2">
                 <Button
-                  type="button"
                   variant="secondary"
                   size="sm"
+                  nativeButton={false}
                   render={
                     <a href={preview.url} target="_blank" rel="noreferrer" />
                   }
