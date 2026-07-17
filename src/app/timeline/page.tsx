@@ -9,6 +9,10 @@ import {
 import { SignOutButton } from "@/components/sign-out-button";
 import { NewEventForm } from "@/components/new-event-form";
 import { DeleteEventButton } from "@/components/delete-event-button";
+import {
+  EventAttachments,
+  type AttachmentView,
+} from "@/components/event-attachments";
 import { format, parseISO } from "date-fns";
 
 export default async function TimelinePage() {
@@ -30,18 +34,41 @@ export default async function TimelinePage() {
     ? await supabase
         .from("events")
         .select(
-          "id, title, body, occurred_on, recorded_at, event_tags(tag_id, tags(name)), attachments(id, file_name)",
+          "id, title, body, occurred_on, recorded_at, event_tags(tag_id, tags(name)), attachments(id, file_name, content_type, storage_path)",
         )
         .eq("persona_id", self.id)
         .order("occurred_on", { ascending: false })
     : { data: [] as const };
 
+  const eventsWithUrls = await Promise.all(
+    (events ?? []).map(async (event) => {
+      const rawAtts = event.attachments ?? [];
+      const attachments: AttachmentView[] = [];
+
+      for (const att of rawAtts) {
+        const { data } = await supabase.storage
+          .from("attachments")
+          .createSignedUrl(att.storage_path, 60 * 60);
+        if (data?.signedUrl) {
+          attachments.push({
+            id: att.id,
+            fileName: att.file_name,
+            contentType: att.content_type,
+            url: data.signedUrl,
+          });
+        }
+      }
+
+      return { ...event, attachmentViews: attachments };
+    }),
+  );
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-12">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Timeline</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-semibold tracking-tight">Timeline</h1>
+          <p className="text-lg text-muted-foreground">
             {self ? (
               <>
                 <span className="font-medium text-foreground">{self.name}</span>
@@ -56,7 +83,7 @@ export default async function TimelinePage() {
       </div>
 
       {personas && personas.length > 1 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Personas: {personas.map((p) => p.name).join(" · ")}
         </p>
       ) : null}
@@ -65,27 +92,29 @@ export default async function TimelinePage() {
         <NewEventForm personaId={self.id} accountId={user.id} />
       ) : null}
 
-      {!events?.length ? (
+      {!eventsWithUrls.length ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">No Events yet</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg">No Events yet</CardTitle>
+            <CardDescription className="text-base">
               Use the form above to capture the first one.
             </CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <ul className="flex flex-col gap-3">
-          {events.map((event) => {
+          {eventsWithUrls.map((event) => {
             const tagNames =
               event.event_tags
                 ?.map((et) => {
-                  const t = et.tags as { name: string } | { name: string }[] | null;
+                  const t = et.tags as
+                    | { name: string }
+                    | { name: string }[]
+                    | null;
                   if (!t) return null;
                   return Array.isArray(t) ? t[0]?.name : t.name;
                 })
                 .filter(Boolean) ?? [];
-            const atts = event.attachments ?? [];
             let when = event.occurred_on;
             try {
               when = format(parseISO(event.occurred_on), "MMM d, yyyy");
@@ -96,27 +125,25 @@ export default async function TimelinePage() {
             return (
               <li key={event.id}>
                 <Card>
-                  <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-                    <div className="min-w-0 space-y-1">
-                      <CardTitle className="text-base">{event.title}</CardTitle>
-                      <CardDescription className="whitespace-pre-wrap">
-                        <span className="font-medium text-foreground/80">
-                          {when}
-                        </span>
-                        {event.body ? `\n${event.body}` : null}
-                      </CardDescription>
-                      {tagNames.length > 0 ? (
-                        <p className="pt-1 text-xs text-muted-foreground">
-                          {tagNames.join(" · ")}
-                        </p>
-                      ) : null}
-                      {atts.length > 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                          {atts.map((a) => a.file_name).join(", ")}
-                        </p>
-                      ) : null}
+                  <CardHeader className="space-y-2">
+                    <div className="flex flex-row items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <CardTitle className="text-lg">{event.title}</CardTitle>
+                        <CardDescription className="text-base whitespace-pre-wrap">
+                          <span className="font-medium text-foreground/80">
+                            {when}
+                          </span>
+                          {event.body ? `\n${event.body}` : null}
+                        </CardDescription>
+                        {tagNames.length > 0 ? (
+                          <p className="pt-1 text-sm text-muted-foreground">
+                            {tagNames.join(" · ")}
+                          </p>
+                        ) : null}
+                      </div>
+                      <DeleteEventButton eventId={event.id} />
                     </div>
-                    <DeleteEventButton eventId={event.id} />
+                    <EventAttachments attachments={event.attachmentViews} />
                   </CardHeader>
                 </Card>
               </li>
