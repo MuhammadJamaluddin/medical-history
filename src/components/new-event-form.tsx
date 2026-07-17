@@ -134,7 +134,7 @@ export function NewEventForm({ personaId, accountId }: Props) {
           Freeform note on the Timeline. Occurred-on is when care happened.
         </CardDescription>
       </CardHeader>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <CardContent className="flex flex-col gap-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
